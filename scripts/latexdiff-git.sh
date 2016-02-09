@@ -40,6 +40,7 @@ LOGFILE=""
 CITATIONS="no"
 BIBTEXFOUND="no"
 BIBTEXPATH="/usr/bin/bibtex"
+EXCLUDECOMMANDS="no"
 
 function main ()
 {
@@ -64,7 +65,12 @@ function main ()
             git checkout -b temp-head-2 "$REV2" >> $LOGFILE 2>&1
             latexpand "$MAINFILE" -o "$REV2FILE"
 
-            latexdiff --type=UNDERLINE "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
+            if [ "no" == "$EXCLUDECOMMANDS" ]; then
+                latexdiff --type=UNDERLINE "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
+            else
+                latexdiff --type=UNDERLINE --exclude-textcmd="\"$EXCLUDECOMMANDS\"" "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
+            fi
+
             pdflatex -interaction batchmode "$DIFFNAME"".tex" >> $LOGFILE 2>&1
             if [ "yes" == "$CITATIONS" ]; then
                 echo "Processing citations."
@@ -73,10 +79,12 @@ function main ()
                 pdflatex -interaction batchmode "$DIFFNAME"".tex" >> $LOGFILE 2>&1
                 pdflatex -interaction batchmode "$DIFFNAME"".tex" >> $LOGFILE 2>&1
             fi
+            echo "Moving resultant tex and pdf to $GITREPO"
             mv "$DIFFNAME"".tex" "$GITREPO" -v >> $LOGFILE 2>&1
             mv "$DIFFNAME"".pdf" "$GITREPO" -v >> $LOGFILE 2>&1
         popd >> $LOGFILE 2>&1
     popd >> $LOGFILE 2>&1
+    echo "Cleaning up"
     echo "Cleaning up" >> $LOGFILE 2>&1
     echo "DONE" >> $LOGFILE 2>&1
     mv $LOGFILE $GITREPO -v
@@ -148,18 +156,26 @@ usage ()
     -c  Process citations and bibliography
         Default: no
 
+    -e  A list of latex commands to ignore
+        Passes a list of commands to latexdiff to ignore. Read the latexdiff
+        man page for more details on --exclude-textcmd
+        Default:
+        Suggested: -e "section,subsection"
+        http://tex.stackexchange.com/a/88377/11281
+
     NOTES:
     Please use shortcommit references as far as possible since pdflatex and so
     on have difficulties with special characters in filenames - ~, ^ etc. may
     not always work. If they don't, look at the script output to understand
     why.
 
-    In general, anything that can be checked out should work - branch names, tags, commits.
+    In general, anything that can be checked out should work - branch names,
+    tags, commits.
 
 EOF
 }
 
-while getopts "hm:s:r:t:c" OPTION
+while getopts "hm:s:r:t:ce:" OPTION
 do
     case $OPTION in
         h)
@@ -181,6 +197,9 @@ do
         c)
             CITATIONS="yes"
             ;;
+        e)
+            EXCLUDECOMMANDS=$OPTARG
+            ;;
         ?)
             usage
             exit 0
@@ -188,5 +207,9 @@ do
     esac
 done
 
+if [ "$#" -eq 0 ]; then
+    usage
+    exit 0
+fi
 check_requirements
 main
