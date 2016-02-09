@@ -36,37 +36,41 @@ PDFLATEXPATH="/usr/bin/pdflatex"
 GITPATH="/usr/bin/git"
 REV1="master^"
 REV2="master"
+LOGFILE=""
 
 function main ()
 {
     TEMPDIR=$(mktemp -d)
     CLONEDIR="$TEMPDIR/tempclone"
+
     GITREPO=$(pwd)
     DIFFNAME="diff-$REV1-$REV2"
+    LOGFILE="$TEMPDIR/$DIFFNAME"".log"
 
-    pushd "$TEMPDIR"
-        git clone "$GITREPO" "$CLONEDIR"
+    pushd "$TEMPDIR" >> $LOGFILE 2>&1
+        echo "Cloning repository $GITREPO"
+        echo "Cloning repository $GITREPO" >> $LOGFILE
+        git clone "$GITREPO" "$CLONEDIR" >> $LOGFILE 2>&1
 
-        pushd "$CLONEDIR"
-            git reset HEAD --hard
-            git checkout -b temp-head-2 "$REV1"
-            pushd "$CLONEDIR/$SUBDIR"
-                latexpand "$MAINFILE" -o "$REV1FILE"
-                mv "$REV1FILE" "$TEMPDIR"
-            popd
-            git checkout -b temp-head-1 "$REV2"
-            pushd "$CLONEDIR/$SUBDIR"
-                latexpand "$MAINFILE" -o "$REV2FILE"
-                mv "$REV2FILE" "$TEMPDIR"
-            popd
-        popd
-        latexdiff --type=UNDERLINE "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
-        pdflatex "$DIFFNAME"".tex"
-        mv "$DIFFNAME"".pdf" "$GITREPO" -v
-    popd
-    rm -rf "$TEMPDIR/*"
-    rm -frv "$TEMPDIR"
-    echo "Cleaned up. Exiting."
+        echo "Working ..."
+        pushd "$CLONEDIR/$SUBDIR" >> $LOGFILE 2>&1
+            git reset HEAD --hard >> $LOGFILE 2>&1
+            git checkout -b temp-head-1 "$REV1" >> $LOGFILE 2>&1
+            latexpand "$MAINFILE" -o "$REV1FILE"
+
+            git checkout -b temp-head-2 "$REV2" >> $LOGFILE 2>&1
+            latexpand "$MAINFILE" -o "$REV2FILE"
+
+            latexdiff --type=UNDERLINE "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
+            pdflatex "$DIFFNAME"".tex" >> $LOGFILE 2>&1
+            mv "$DIFFNAME"".pdf" "$GITREPO" -v >> $LOGFILE 2>&1
+        popd >> $LOGFILE 2>&1
+    popd >> $LOGFILE 2>&1
+    echo "Cleaning up" >> $LOGFILE 2>&1
+    echo "DONE" >> $LOGFILE 2>&1
+    mv $LOGFILE $GITREPO -v
+    rm -fr "$TEMPDIR"
+    echo "DONE"
 }
 
 function check_requirements ()
