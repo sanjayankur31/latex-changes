@@ -37,6 +37,9 @@ GITPATH="/usr/bin/git"
 REV1="master^"
 REV2="master"
 LOGFILE=""
+CITATIONS="no"
+BIBTEXFOUND="no"
+BIBTEXPATH="/usr/bin/bibtex"
 
 function main ()
 {
@@ -61,8 +64,15 @@ function main ()
             git checkout -b temp-head-2 "$REV2" >> $LOGFILE 2>&1
             latexpand "$MAINFILE" -o "$REV2FILE"
 
-            latexdiff --type=UNDERLINE --disable-citation-markup "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
+            latexdiff --type=UNDERLINE "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
             pdflatex -interaction batchmode "$DIFFNAME"".tex" >> $LOGFILE 2>&1
+            if [ "yes" == "$CITATIONS" ]; then
+                echo "Processing citations."
+                echo "Processing citations." >> $LOGFILE 2>&1
+                bibtex "$DIFFNAME"".tex" >> $LOGFILE 2>&1
+                pdflatex -interaction batchmode "$DIFFNAME"".tex" >> $LOGFILE 2>&1
+                pdflatex -interaction batchmode "$DIFFNAME"".tex" >> $LOGFILE 2>&1
+            fi
             mv "$DIFFNAME"".tex" "$GITREPO" -v >> $LOGFILE 2>&1
             mv "$DIFFNAME"".pdf" "$GITREPO" -v >> $LOGFILE 2>&1
         popd >> $LOGFILE 2>&1
@@ -89,11 +99,22 @@ function check_requirements ()
         PDFLATEXFOUND="yes"
     fi
 
+    if [ -x "$BIBTEXPATH" ] ; then
+        BIBTEXFOUND="yes"
+    fi
+
     if [ "yes" == "$LATEXPANDFOUND" ] &&  [ "yes" == "$LATEXDIFFFOUND" ] && [ "yes" == "$GITFOUND" ] && [ "yes" == "$PDFLATEXFOUND" ]; then
         echo "Found required binaries. Continuing."
     else
         echo "Did not find required binaries. Please check that latexpand, latexdiff, pdflatex and git are installed and the paths they're installed at are set correctly in the script."
         return -1
+    fi
+
+    if [ "yes" == "$CITATIONS" ] && [ "yes" == "$BIBTEXFOUND" ]; then
+        echo "Bibtex found. Citations will be processed."
+    else
+        echo "Could not find Bibtex. Citations will not be processed."
+        CITATIONS="no"
     fi
 }
 
@@ -124,6 +145,9 @@ usage ()
     -t  Revision 2 
         Default: HEAD
 
+    -c  Process citations and bibliography
+        Default: no
+
     NOTES:
     Please use shortcommit references as far as possible since pdflatex and so
     on have difficulties with special characters in filenames - ~, ^ etc. may
@@ -135,10 +159,7 @@ usage ()
 EOF
 }
 
-# Run it
-check_requirements
-
-while getopts "hm:s:r:t:" OPTION
+while getopts "hm:s:r:t:c" OPTION
 do
     case $OPTION in
         h)
@@ -157,10 +178,15 @@ do
         t)
             REV2=$OPTARG
             ;;
+        c)
+            CITATIONS="yes"
+            ;;
         ?)
             usage
             exit 0
             ;;
     esac
 done
+
+check_requirements
 main
