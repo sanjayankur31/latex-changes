@@ -61,8 +61,9 @@ function main ()
             git checkout -b temp-head-2 "$REV2" >> $LOGFILE 2>&1
             latexpand "$MAINFILE" -o "$REV2FILE"
 
-            latexdiff --type=UNDERLINE "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
-            pdflatex "$DIFFNAME"".tex" >> $LOGFILE 2>&1
+            latexdiff --type=UNDERLINE --disable-citation-markup "$REV1FILE" "$REV2FILE" > "$DIFFNAME"".tex"
+            pdflatex -interaction batchmode "$DIFFNAME"".tex" >> $LOGFILE 2>&1
+            mv "$DIFFNAME"".tex" "$GITREPO" -v >> $LOGFILE 2>&1
             mv "$DIFFNAME"".pdf" "$GITREPO" -v >> $LOGFILE 2>&1
         popd >> $LOGFILE 2>&1
     popd >> $LOGFILE 2>&1
