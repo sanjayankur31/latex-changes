@@ -6,7 +6,6 @@ Only works for git. Written because latexdiff-vc --flatten doesn't seem to find
 differences in the included tex files.
 
 
-.. code:: bash
     usage: ./latexdiff-git.sh options
 
     This script generates a pdf diff from two git commits in the working directory.
